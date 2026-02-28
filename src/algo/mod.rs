@@ -9,7 +9,7 @@ pub async fn rainbow_led<'a>(t: u64, hw: &mut Hardware<'a>) {
     loop {
         for h in 0..360 {
             let rgb = RGB::from_hsv(&HSV {
-                h: h as f64,
+                h: h as f32,
                 s: 1.0,
                 v: 1.0,
             });

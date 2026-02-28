@@ -7,17 +7,17 @@ pub struct RGB {
 }
 
 pub struct HSV {
-    pub h: f64,
-    pub s: f64,
-    pub v: f64,
+    pub h: f32,
+    pub s: f32,
+    pub v: f32,
 }
 
 #[allow(dead_code)]
 impl HSV {
     pub fn from_rgb(rgb: &RGB) -> Self {
-        let r = rgb.r as f64 / 255.0;
-        let g = rgb.g as f64 / 255.0;
-        let b = rgb.b as f64 / 255.0;
+        let r = rgb.r as f32 / 255.0;
+        let g = rgb.g as f32 / 255.0;
+        let b = rgb.b as f32 / 255.0;
 
         let min = r.min(g.min(b));
         let max = r.max(g.max(b));
