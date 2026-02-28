@@ -41,6 +41,7 @@ impl<'a> Hardware<'a> {
             static RIGHT_RPM_SP: AtomicF32 = AtomicF32::new(0.0);
             SpeedControl::new(
                 hb,
+                p.PIO0,
                 p.PIN_6,
                 p.PIN_7,
                 p.PIN_8,
