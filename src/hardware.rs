@@ -16,11 +16,12 @@ use crate::{
 /// wrapper for all external peripherals
 #[allow(dead_code)]
 pub struct Hardware<'a> {
-    pub sc: SpeedControl,
+    pub button: Input<'a>,
     pub buzzer: Buzzer<'a>,
+    pub rgb_led: RGBLed<'a>,
+    pub sc: SpeedControl,
     pub track_left: Input<'a>,
     pub track_right: Input<'a>,
-    pub rgb_led: RGBLed<'a>,
 }
 
 impl<'a> Hardware<'a> {
@@ -28,17 +29,32 @@ impl<'a> Hardware<'a> {
     pub fn init(p: Peripherals, spawner: Spawner) -> Self {
         usb::logger_init(p.USB, &spawner);
 
-        let hb = HBridge::new(
-            Pwm::new_output_ab(p.PWM_SLICE6, p.PIN_12, p.PIN_13, pwm::Config::default()),
-            Pwm::new_output_ab(p.PWM_SLICE5, p.PIN_10, p.PIN_11, pwm::Config::default()),
+        let button = Input::new(p.PIN_0, Pull::Up);
+
+        let buzzer = Buzzer::new(Pwm::new_output_b(
+            p.PWM_SLICE0,
+            p.PIN_17,
+            pwm::Config::default(),
+        ));
+
+        let rgb_led = RGBLed::new(
+            Pwm::new_output_ab(p.PWM_SLICE1, p.PIN_18, p.PIN_19, pwm::Config::default()),
+            Pwm::new_output_a(p.PWM_SLICE2, p.PIN_20, pwm::Config::default()),
             2000,
         );
 
         let sc = {
+            let hb = HBridge::new(
+                Pwm::new_output_ab(p.PWM_SLICE6, p.PIN_12, p.PIN_13, pwm::Config::default()),
+                Pwm::new_output_ab(p.PWM_SLICE5, p.PIN_10, p.PIN_11, pwm::Config::default()),
+                2000,
+            );
+
             static LEFT_TICKS: AtomicI32 = AtomicI32::new(0);
             static RIGHT_TICKS: AtomicI32 = AtomicI32::new(0);
             static LEFT_RPM_SP: AtomicF32 = AtomicF32::new(0.0);
             static RIGHT_RPM_SP: AtomicF32 = AtomicF32::new(0.0);
+
             SpeedControl::new(
                 hb,
                 p.PIO0,
@@ -54,27 +70,16 @@ impl<'a> Hardware<'a> {
             )
         };
 
-        let buzzer = Buzzer::new(Pwm::new_output_b(
-            p.PWM_SLICE0,
-            p.PIN_17,
-            pwm::Config::default(),
-        ));
-
         let track_left = Input::new(p.PIN_28, Pull::Up);
         let track_right = Input::new(p.PIN_16, Pull::Up);
 
-        let rgb_led = RGBLed::new(
-            Pwm::new_output_ab(p.PWM_SLICE1, p.PIN_18, p.PIN_19, pwm::Config::default()),
-            Pwm::new_output_a(p.PWM_SLICE2, p.PIN_20, pwm::Config::default()),
-            2000,
-        );
-
         Self {
-            sc,
+            button,
             buzzer,
+            rgb_led,
+            sc,
             track_left,
             track_right,
-            rgb_led,
         }
     }
 }
