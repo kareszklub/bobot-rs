@@ -57,7 +57,7 @@ impl<'a> Hardware<'a> {
 
             SpeedControl::new(
                 hb,
-                p.PIO0,
+                p.PIO1,
                 p.PIN_6,
                 p.PIN_7,
                 p.PIN_8,

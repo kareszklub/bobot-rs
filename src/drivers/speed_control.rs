@@ -3,7 +3,7 @@ use core::sync::atomic::{AtomicI32, Ordering};
 use embassy_executor::Spawner;
 use embassy_rp::Peri;
 use embassy_rp::bind_interrupts;
-use embassy_rp::peripherals::PIO0;
+use embassy_rp::peripherals::PIO1;
 use embassy_rp::pio::{InterruptHandler, Pio, PioPin};
 use embassy_rp::pio_programs::rotary_encoder::{Direction, PioEncoder, PioEncoderProgram};
 use embassy_time::{Duration, Ticker};
@@ -14,7 +14,7 @@ use crate::{
 };
 
 bind_interrupts!(struct Irqs {
-    PIO0_IRQ_0 => InterruptHandler<PIO0>;
+    PIO1_IRQ_0 => InterruptHandler<PIO1>;
 });
 
 const TICKS_PER_REV: f32 = 1440.0;
@@ -23,7 +23,7 @@ const LPF_ALPHA: f32 = 0.2;
 const HARD_STOP_RPM: f32 = 0.05;
 
 #[embassy_executor::task]
-async fn encoder_left(mut encoder: PioEncoder<'static, PIO0, 0>, ticks: &'static AtomicI32) {
+async fn encoder_left(mut encoder: PioEncoder<'static, PIO1, 0>, ticks: &'static AtomicI32) {
     loop {
         let diff = match encoder.read().await {
             Direction::Clockwise => 1,
@@ -34,7 +34,7 @@ async fn encoder_left(mut encoder: PioEncoder<'static, PIO0, 0>, ticks: &'static
 }
 
 #[embassy_executor::task]
-async fn encoder_right(mut encoder: PioEncoder<'static, PIO0, 1>, ticks: &'static AtomicI32) {
+async fn encoder_right(mut encoder: PioEncoder<'static, PIO1, 1>, ticks: &'static AtomicI32) {
     loop {
         let diff = match encoder.read().await {
             Direction::Clockwise => 1,
@@ -117,7 +117,7 @@ pub struct SpeedControl {
 impl SpeedControl {
     pub fn new(
         hb: HBridge<'static>,
-        pio: Peri<'static, PIO0>,
+        pio: Peri<'static, PIO1>,
         la_pin: Peri<'static, impl PioPin>,
         lb_pin: Peri<'static, impl PioPin>,
         ra_pin: Peri<'static, impl PioPin>,
