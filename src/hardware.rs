@@ -9,7 +9,7 @@ use embassy_rp::{
 
 use crate::{
     drivers::{buzzer::Buzzer, h_bridge::HBridge, rgb_led::RGBLed, speed_control::SpeedControl},
-    usb,
+    net, usb,
     utils::atomic_f32::AtomicF32,
 };
 
@@ -26,7 +26,7 @@ pub struct Hardware<'a> {
 
 impl<'a> Hardware<'a> {
     /// initialize all hardware from the given peripherals singleton
-    pub fn init(p: Peripherals, spawner: Spawner) -> Self {
+    pub async fn init(p: Peripherals, spawner: Spawner) -> Self {
         usb::logger_init(p.USB, &spawner);
 
         let button = Input::new(p.PIN_0, Pull::Up);
@@ -72,6 +72,12 @@ impl<'a> Hardware<'a> {
 
         let track_left = Input::new(p.PIN_28, Pull::Up);
         let track_right = Input::new(p.PIN_16, Pull::Up);
+
+        spawner
+            .spawn(net::net_init(
+                p.PIN_23, p.PIN_24, p.PIN_25, p.PIN_29, p.PIO0, p.DMA_CH0, spawner,
+            ))
+            .unwrap();
 
         Self {
             button,
