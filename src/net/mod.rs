@@ -14,6 +14,7 @@ use embassy_rp::{
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
 use embassy_time::Duration;
 use embedded_io_async::Write;
+use postcard::accumulator::{CobsAccumulator, FeedResult};
 use static_cell::StaticCell;
 
 use crate::net::{
@@ -137,27 +138,47 @@ pub async fn net_init(
         TCP_UP.store(true, Ordering::Relaxed);
 
         let recv_fut = async {
-            let mut buf = [0u8; 512];
+            let mut accumulator: CobsAccumulator<512> = CobsAccumulator::new();
+            let mut buf = [0u8; 256];
+
             loop {
                 match reader.read(&mut buf).await {
+                    Ok(0) => {
+                        log::warn!("Read EOF: client disconnected.");
+                        break;
+                    }
                     Ok(n) => {
-                        if n == 0 {
-                            log::warn!("Read EOF: client disconnected.");
-                            break;
-                        }
+                        let mut window = &buf[..n];
 
-                        if let Ok(packet) = postcard::from_bytes::<RecvPacket>(&buf[..n]) {
-                            log::info!("Received: {:?}", packet);
-                            match packet {
-                                RecvPacket::CommandToggleLed(state) => {
-                                    control.gpio_set(0, state).await;
+                        'cobs: while !window.is_empty() {
+                            window = match accumulator.feed::<RecvPacket>(window) {
+                                FeedResult::Consumed => break 'cobs,
+                                FeedResult::OverFull(new_wind) => {
+                                    log::warn!("Accumulator overflow! Packet too large.");
+                                    new_wind
                                 }
-                                RecvPacket::Pong => log::info!("Pico got Pong!"),
-                                _ => {}
-                            }
+                                FeedResult::DeserError(new_wind) => {
+                                    log::warn!("Deserialization error! Bad packet.");
+                                    new_wind
+                                }
+                                FeedResult::Success { data, remaining } => {
+                                    log::info!("Received: {:?}", data);
+                                    match data {
+                                        RecvPacket::CommandToggleLed(state) => {
+                                            control.gpio_set(0, state).await;
+                                        }
+                                        RecvPacket::Pong => log::info!("Pico got Pong!"),
+                                        _ => {}
+                                    }
+                                    remaining
+                                }
+                            };
                         }
                     }
-                    Err(e) => log::error!("Failed to read from stream: {:?}", e),
+                    Err(e) => {
+                        log::error!("Failed to read from stream: {:?}", e);
+                        break;
+                    }
                 }
             }
         };
@@ -166,7 +187,7 @@ pub async fn net_init(
             loop {
                 let packet = TX.receive().await;
                 let mut buf = [0u8; 512];
-                if let Ok(encoded) = postcard::to_slice(&packet, &mut buf) {
+                if let Ok(encoded) = postcard::to_slice_cobs(&packet, &mut buf) {
                     let _ = writer.write_all(encoded).await;
                 }
             }
